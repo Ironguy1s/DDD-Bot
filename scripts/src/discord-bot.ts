@@ -3,9 +3,15 @@ import {
   Client,
   Events,
   GatewayIntentBits,
+  type Message,
   type RESTPostAPIChatInputApplicationCommandsJSONBody,
 } from "discord.js";
-import { getTriggeredReply, isBotOwner, loadBotRules } from "./discord-bot-rules.js";
+import {
+  getTimeoutTargetId,
+  getTriggeredReply,
+  isBotOwner,
+  loadBotRules,
+} from "./discord-bot-rules.js";
 
 const sayCommand = {
   name: "say",
@@ -23,6 +29,17 @@ const sayCommand = {
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Unknown Discord API error";
+}
+
+async function replyWithoutPings(message: Message, content: string): Promise<void> {
+  try {
+    await message.reply({
+      content,
+      allowedMentions: { parse: [] },
+    });
+  } catch (error) {
+    console.error(`Could not send a bot reply: ${getErrorMessage(error)}`);
+  }
 }
 
 async function startBot(): Promise<void> {
@@ -64,6 +81,67 @@ async function startBot(): Promise<void> {
 
   client.on(Events.MessageCreate, async (message) => {
     if (!message.inGuild() || message.author.bot) return;
+
+    const trimmedContent = message.content.trim();
+    const isTimeoutRequest = /^time\s+out\b/i.test(trimmedContent);
+    if (message.author.id === rules.timeoutCommand.userId && isTimeoutRequest) {
+      const targetId = getTimeoutTargetId(
+        trimmedContent,
+        message.author.id,
+        rules.timeoutCommand,
+      );
+
+      if (
+        !targetId ||
+        message.mentions.users.size !== 1 ||
+        !message.mentions.users.has(targetId)
+      ) {
+        await replyWithoutPings(
+          message,
+          "Use `time out @member` with exactly one real member mention.",
+        );
+        return;
+      }
+
+      let target;
+      try {
+        target = await message.guild.members.fetch(targetId);
+      } catch (error) {
+        console.error(`Could not find the requested timeout target: ${getErrorMessage(error)}`);
+        await replyWithoutPings(message, "I couldn't find that member in this server.");
+        return;
+      }
+
+      if (
+        target.id === message.author.id ||
+        target.id === message.guild.ownerId ||
+        target.user.bot
+      ) {
+        await replyWithoutPings(
+          message,
+          "I can't time out the command sender, a bot, or the server owner.",
+        );
+        return;
+      }
+
+      const durationSeconds = rules.timeoutCommand.durationSeconds;
+      try {
+        await target.timeout(durationSeconds * 1000, "Authorized timeout command");
+      } catch (error) {
+        console.error(`Could not apply the requested timeout: ${getErrorMessage(error)}`);
+        await replyWithoutPings(
+          message,
+          "I couldn't apply the timeout. Check that I have Moderate Members permission and a role above the target.",
+        );
+        return;
+      }
+
+      await replyWithoutPings(
+        message,
+        `Timed out ${target.user.tag} for ${durationSeconds} seconds.`,
+      );
+      return;
+    }
 
     const reply = getTriggeredReply(message.content, message.author.id, rules);
     if (!reply) return;

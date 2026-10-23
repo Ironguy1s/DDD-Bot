@@ -8,6 +8,10 @@ Edit `scripts/config/discord-bot.rules.json`. Matching is case-insensitive and c
 
 ```json
 {
+  "timeoutCommand": {
+    "userId": "123456789012345678",
+    "durationSeconds": 60
+  },
   "keywordRules": [
     {
       "keywords": ["hello", "good morning"],
@@ -29,6 +33,8 @@ Edit `scripts/config/discord-bot.rules.json`. Matching is case-insensitive and c
 ```
 
 For a user-ID rule, `replies` is an array and the bot randomly chooses one after the rule triggers. `chancePercent` is optional and defaults to `100`; set it from `0` to `100` to control how often it replies. `cooldownSeconds` limits replies to one per user during that interval; set it to `0` to disable the cooldown. Restart the **Discord Bot** workflow after changing rules.
+
+The `timeoutCommand` only runs when its configured user sends `time out @member` with exactly one real Discord user mention. The bot applies the configured duration (60 seconds here), and requires **Moderate Members** permission with its role above the target's. It won't time out the command sender, a bot, or the server owner.
 
 ## Owner-only `/say`
 

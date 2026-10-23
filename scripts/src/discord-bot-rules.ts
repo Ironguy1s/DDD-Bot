@@ -12,8 +12,14 @@ export interface UserIdRule {
   chancePercent: number;
 }
 
+export interface TimeoutCommandRule {
+  userId: string;
+  durationSeconds: number;
+}
+
 export interface BotRules {
   ownerUserId: string;
+  timeoutCommand: TimeoutCommandRule;
   keywordRules: KeywordRule[];
   userIdRules: UserIdRule[];
   cooldownSeconds: number;
@@ -61,6 +67,27 @@ function parseBotRules(value: unknown): BotRules {
 
   if (typeof value.ownerUserId !== "string" || !/^\d{17,20}$/.test(value.ownerUserId)) {
     throw new Error('"ownerUserId" must be a Discord user ID made of 17–20 digits.');
+  }
+
+  if (!isRecord(value.timeoutCommand)) {
+    throw new Error('"timeoutCommand" must be an object.');
+  }
+
+  if (
+    typeof value.timeoutCommand.userId !== "string" ||
+    !/^\d{17,20}$/.test(value.timeoutCommand.userId)
+  ) {
+    throw new Error('"timeoutCommand.userId" must be a Discord user ID made of 17–20 digits.');
+  }
+
+  const timeoutDurationSeconds = value.timeoutCommand.durationSeconds;
+  if (
+    typeof timeoutDurationSeconds !== "number" ||
+    !Number.isInteger(timeoutDurationSeconds) ||
+    timeoutDurationSeconds < 1 ||
+    timeoutDurationSeconds > 28 * 24 * 60 * 60
+  ) {
+    throw new Error('"timeoutCommand.durationSeconds" must be an integer from 1 to 28 days.');
   }
 
   const keywordRules = value.keywordRules.map((rule, index): KeywordRule => {
@@ -112,7 +139,16 @@ function parseBotRules(value: unknown): BotRules {
     throw new Error('"cooldownSeconds" must be a number from 0 to 3600.');
   }
 
-  return { ownerUserId: value.ownerUserId, keywordRules, userIdRules, cooldownSeconds };
+  return {
+    ownerUserId: value.ownerUserId,
+    timeoutCommand: {
+      userId: value.timeoutCommand.userId,
+      durationSeconds: timeoutDurationSeconds,
+    },
+    keywordRules,
+    userIdRules,
+    cooldownSeconds,
+  };
 }
 
 export async function loadBotRules(): Promise<BotRules> {
@@ -158,4 +194,15 @@ export function getTriggeredReply(
 
 export function isBotOwner(userId: string, ownerUserId: string): boolean {
   return userId === ownerUserId;
+}
+
+export function getTimeoutTargetId(
+  messageContent: string,
+  authorId: string,
+  timeoutCommand: TimeoutCommandRule,
+): string | undefined {
+  if (authorId !== timeoutCommand.userId) return undefined;
+
+  const match = /^time\s+out\s+<@!?(\d{17,20})>$/i.exec(messageContent.trim());
+  return match?.[1];
 }

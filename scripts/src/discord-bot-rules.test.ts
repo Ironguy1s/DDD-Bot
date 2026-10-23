@@ -2,12 +2,17 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   getTriggeredReply,
+  getTimeoutTargetId,
   isBotOwner,
   type BotRules,
 } from "./discord-bot-rules.js";
 
 const rules: BotRules = {
   ownerUserId: "222222222222222222",
+  timeoutCommand: {
+    userId: "333333333333333333",
+    durationSeconds: 60,
+  },
   keywordRules: [
     { keywords: ["hello", "good morning"], reply: "First match" },
     { keywords: ["help"], reply: "Help reply" },
@@ -109,5 +114,43 @@ test("randomly selects the second configured response after the chance succeeds"
       () => randomValues.shift() ?? 0,
     ),
     "come to my party next time",
+  );
+});
+
+test("parses a timeout mention only from the authorized sender", () => {
+  assert.equal(
+    getTimeoutTargetId(
+      "time out <@!123456789012345678>",
+      rules.timeoutCommand.userId,
+      rules.timeoutCommand,
+    ),
+    "123456789012345678",
+  );
+  assert.equal(
+    getTimeoutTargetId(
+      "time out <@123456789012345678>",
+      "444444444444444444",
+      rules.timeoutCommand,
+    ),
+    undefined,
+  );
+});
+
+test("ignores malformed timeout phrases and extra mentions or text", () => {
+  assert.equal(
+    getTimeoutTargetId(
+      "time out 123456789012345678",
+      rules.timeoutCommand.userId,
+      rules.timeoutCommand,
+    ),
+    undefined,
+  );
+  assert.equal(
+    getTimeoutTargetId(
+      "time out <@123456789012345678> please",
+      rules.timeoutCommand.userId,
+      rules.timeoutCommand,
+    ),
+    undefined,
   );
 });
