@@ -5,10 +5,15 @@
   "type": "module",
   "scripts": {
     "hello": "tsx ./src/hello.ts",
+    "discord-bot": "tsx ./src/discord-bot.ts",
+    "test:discord-bot": "tsx --test ./src/discord-bot-rules.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
     "@types/node": "catalog:",
     "tsx": "catalog:"
+  },
+  "dependencies": {
+    "discord.js": "^14.27.0"
   }
 }
