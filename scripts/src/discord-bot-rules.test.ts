@@ -1,8 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getTriggeredReply, type BotRules } from "./discord-bot-rules.js";
+import {
+  getTriggeredReply,
+  isBotOwner,
+  type BotRules,
+} from "./discord-bot-rules.js";
 
 const rules: BotRules = {
+  ownerUserId: "222222222222222222",
   keywordRules: [
     { keywords: ["hello", "good morning"], reply: "First match" },
     { keywords: ["help"], reply: "Help reply" },
@@ -25,4 +30,9 @@ test("prioritizes a matching user ID over keywords", () => {
 
 test("returns no reply when there is no match", () => {
   assert.equal(getTriggeredReply("unmatched message", "111111111111111111", rules), undefined);
+});
+
+test("allows only the configured owner ID", () => {
+  assert.equal(isBotOwner("222222222222222222", rules.ownerUserId), true);
+  assert.equal(isBotOwner("111111111111111111", rules.ownerUserId), false);
 });

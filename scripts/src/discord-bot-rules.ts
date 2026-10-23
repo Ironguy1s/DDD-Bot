@@ -12,6 +12,7 @@ export interface UserIdRule {
 }
 
 export interface BotRules {
+  ownerUserId: string;
   keywordRules: KeywordRule[];
   userIdRules: UserIdRule[];
   cooldownSeconds: number;
@@ -42,6 +43,10 @@ function parseBotRules(value: unknown): BotRules {
 
   if (!Array.isArray(value.userIdRules)) {
     throw new Error('"userIdRules" must be an array.');
+  }
+
+  if (typeof value.ownerUserId !== "string" || !/^\d{17,20}$/.test(value.ownerUserId)) {
+    throw new Error('"ownerUserId" must be a Discord user ID made of 17–20 digits.');
   }
 
   const keywordRules = value.keywordRules.map((rule, index): KeywordRule => {
@@ -79,7 +84,7 @@ function parseBotRules(value: unknown): BotRules {
     throw new Error('"cooldownSeconds" must be a number from 0 to 3600.');
   }
 
-  return { keywordRules, userIdRules, cooldownSeconds };
+  return { ownerUserId: value.ownerUserId, keywordRules, userIdRules, cooldownSeconds };
 }
 
 export async function loadBotRules(): Promise<BotRules> {
@@ -116,4 +121,8 @@ export function getTriggeredReply(
   );
 
   return keywordRule?.reply;
+}
+
+export function isBotOwner(userId: string, ownerUserId: string): boolean {
+  return userId === ownerUserId;
 }

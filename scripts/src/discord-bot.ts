@@ -1,5 +1,29 @@
-import { Client, Events, GatewayIntentBits } from "discord.js";
-import { getTriggeredReply, loadBotRules } from "./discord-bot-rules.js";
+import {
+  ApplicationCommandOptionType,
+  Client,
+  Events,
+  GatewayIntentBits,
+  type RESTPostAPIChatInputApplicationCommandsJSONBody,
+} from "discord.js";
+import { getTriggeredReply, isBotOwner, loadBotRules } from "./discord-bot-rules.js";
+
+const sayCommand = {
+  name: "say",
+  description: "Send a message as the bot in this channel",
+  options: [
+    {
+      name: "message",
+      description: "The message the bot should send",
+      type: ApplicationCommandOptionType.String,
+      required: true,
+      max_length: 2000,
+    },
+  ],
+} satisfies RESTPostAPIChatInputApplicationCommandsJSONBody;
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "Unknown Discord API error";
+}
 
 async function startBot(): Promise<void> {
   const token = process.env.DISCORD_BOT_TOKEN;
@@ -18,11 +42,24 @@ async function startBot(): Promise<void> {
   const lastReplyAtByUser = new Map<string, number>();
   const cooldownMs = rules.cooldownSeconds * 1000;
 
-  client.once(Events.ClientReady, (readyClient) => {
+  client.once(Events.ClientReady, async (readyClient) => {
     console.info(`Discord bot is online as ${readyClient.user.tag}.`);
     console.info(
       `Loaded ${rules.keywordRules.length} keyword rule(s) and ${rules.userIdRules.length} user ID rule(s).`,
     );
+
+    try {
+      const existingCommands = await readyClient.application.commands.fetch();
+      const existingSayCommand = existingCommands.find((command) => command.name === "say");
+      if (existingSayCommand) {
+        await readyClient.application.commands.edit(existingSayCommand.id, sayCommand);
+      } else {
+        await readyClient.application.commands.create(sayCommand);
+      }
+      console.info("The /say command is registered.");
+    } catch (error) {
+      console.error(`Could not register /say: ${getErrorMessage(error)}`);
+    }
   });
 
   client.on(Events.MessageCreate, async (message) => {
@@ -44,6 +81,52 @@ async function startBot(): Promise<void> {
     } catch (error) {
       const detail = error instanceof Error ? error.message : "Unknown Discord API error";
       console.error(`Could not send a reply: ${detail}`);
+    }
+  });
+
+  client.on(Events.InteractionCreate, async (interaction) => {
+    if (!interaction.isChatInputCommand() || interaction.commandName !== "say") return;
+
+    if (!isBotOwner(interaction.user.id, rules.ownerUserId)) {
+      await interaction.reply({
+        content: "Only the bot owner can use this command.",
+        ephemeral: true,
+      });
+      return;
+    }
+
+    if (
+      !interaction.inGuild() ||
+      !interaction.channel ||
+      !("send" in interaction.channel) ||
+      typeof interaction.channel.send !== "function"
+    ) {
+      await interaction.reply({
+        content: "Use this command in a server text channel.",
+        ephemeral: true,
+      });
+      return;
+    }
+
+    const content = interaction.options.getString("message", true).trim();
+    if (!content) {
+      await interaction.reply({
+        content: "Please provide a message to send.",
+        ephemeral: true,
+      });
+      return;
+    }
+
+    await interaction.deferReply({ ephemeral: true });
+    try {
+      await interaction.channel.send({
+        content,
+        allowedMentions: { parse: [] },
+      });
+      await interaction.editReply("Sent.");
+    } catch (error) {
+      console.error(`Could not send /say message: ${getErrorMessage(error)}`);
+      await interaction.editReply("I couldn't send that message. Check that I can send messages in this channel.");
     }
   });
 

@@ -26,15 +26,19 @@ Edit `scripts/config/discord-bot.rules.json`. Matching is case-insensitive and c
 
 Use empty arrays until you are ready to add rules. `cooldownSeconds` limits replies to one per user during that interval; set it to `0` to disable the cooldown. Restart the **Discord Bot** workflow after changing rules.
 
+## Owner-only `/say`
+
+The bot registers `/say message:<text>` when it starts. It posts the supplied text in the current server channel and gives you a private confirmation. Other users can see the command, but the bot will not send their messages and will show them a private denial. The command uses `ownerUserId` from the rules file for this check. Mentions are disabled in sent messages.
+
 ## Discord setup
 
 1. In the Discord Developer Portal, create an application and add a bot.
 2. Under **Bot**, enable **Message Content Intent**. The bot uses this to read message text.
-3. Invite it to your server using the OAuth2 URL Generator with the `bot` scope and the `View Channels` and `Send Messages` permissions.
+3. Invite it to your server using the OAuth2 URL Generator with the `bot` and `applications.commands` scopes and the `View Channels` and `Send Messages` permissions.
 4. Keep the bot token in Replit Secrets as `DISCORD_BOT_TOKEN`. Never put it in the rules file or source code.
 5. Start the **Discord Bot** workflow.
 
-The bot replies in the channel where a matching server message was sent. Replies do not ping users or roles.
+The bot replies in the channel where a matching server message was sent. Replies do not ping users or roles. Global slash-command registration may take a short time to appear in Discord.
 
 ## Run locally / checks
 
