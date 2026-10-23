@@ -7,7 +7,7 @@ import {
   type RESTPostAPIChatInputApplicationCommandsJSONBody,
 } from "discord.js";
 import {
-  getTimeoutTargetId,
+  getSilenceTargetId,
   getTriggeredReply,
   isBotOwner,
   loadBotRules,
@@ -84,11 +84,11 @@ async function startBot(): Promise<void> {
 
     const trimmedContent = message.content.trim();
     const isTimeoutRequest = /^time\s+out\b/i.test(trimmedContent);
-    if (message.author.id === rules.timeoutCommand.userId && isTimeoutRequest) {
-      const targetId = getTimeoutTargetId(
+    if (message.author.id === rules.timeoutTrigger.userId && isTimeoutRequest) {
+      const targetId = getSilenceTargetId(
         trimmedContent,
         message.author.id,
-        rules.timeoutCommand,
+        rules.timeoutTrigger,
       );
 
       if (
@@ -124,7 +124,7 @@ async function startBot(): Promise<void> {
         return;
       }
 
-      const durationSeconds = rules.timeoutCommand.durationSeconds;
+      const durationSeconds = rules.timeoutTrigger.durationSeconds;
       try {
         await target.timeout(durationSeconds * 1000, "Authorized timeout command");
       } catch (error) {
