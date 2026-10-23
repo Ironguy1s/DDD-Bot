@@ -7,7 +7,7 @@ import {
   type RESTPostAPIChatInputApplicationCommandsJSONBody,
 } from "discord.js";
 import {
-  getSilenceTargetId,
+  getTimeoutTargetId,
   getTriggeredReply,
   isBotOwner,
   loadBotRules,
@@ -83,12 +83,12 @@ async function startBot(): Promise<void> {
     if (!message.inGuild() || message.author.bot) return;
 
     const trimmedContent = message.content.trim();
-    const isSilenceTrigger = /^silence\b/i.test(trimmedContent);
-    if (message.author.id === rules.timeoutTrigger.userId && isSilenceTrigger) {
-      const targetId = getSilenceTargetId(
+    const isTimeoutRequest = /^time\s+out\b/i.test(trimmedContent);
+    if (message.author.id === rules.timeoutCommand.userId && isTimeoutRequest) {
+      const targetId = getTimeoutTargetId(
         trimmedContent,
         message.author.id,
-        rules.timeoutTrigger,
+        rules.timeoutCommand,
       );
 
       if (
@@ -98,7 +98,7 @@ async function startBot(): Promise<void> {
       ) {
         await replyWithoutPings(
           message,
-          "Use `Silence @member` with exactly one real member mention.",
+          "Use `time out @member` with exactly one real member mention.",
         );
         return;
       }
@@ -119,14 +119,14 @@ async function startBot(): Promise<void> {
       ) {
         await replyWithoutPings(
           message,
-          "I can't time out the trigger sender, a bot, or the server owner.",
+          "I can't time out the command sender, a bot, or the server owner.",
         );
         return;
       }
 
-      const durationSeconds = rules.timeoutTrigger.durationSeconds;
+      const durationSeconds = rules.timeoutCommand.durationSeconds;
       try {
-        await target.timeout(durationSeconds * 1000, "Authorized Silence trigger");
+        await target.timeout(durationSeconds * 1000, "Authorized timeout command");
       } catch (error) {
         console.error(`Could not apply the requested timeout: ${getErrorMessage(error)}`);
         await replyWithoutPings(
