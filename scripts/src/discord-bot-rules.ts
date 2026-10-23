@@ -9,6 +9,7 @@ export interface KeywordRule {
 export interface UserIdRule {
   userId: string;
   reply: string;
+  chancePercent: number;
 }
 
 export interface BotRules {
@@ -71,7 +72,21 @@ function parseBotRules(value: unknown): BotRules {
       throw new Error(`${label} must include a Discord user ID made of 17–20 digits.`);
     }
 
-    return { userId: rule.userId, reply: readReplyRule(rule, label) };
+    const chancePercent = rule.chancePercent ?? 100;
+    if (
+      typeof chancePercent !== "number" ||
+      !Number.isFinite(chancePercent) ||
+      chancePercent < 0 ||
+      chancePercent > 100
+    ) {
+      throw new Error(`${label} "chancePercent" must be a number from 0 to 100.`);
+    }
+
+    return {
+      userId: rule.userId,
+      reply: readReplyRule(rule, label),
+      chancePercent,
+    };
   });
 
   const cooldownSeconds = value.cooldownSeconds;
@@ -109,9 +124,12 @@ export function getTriggeredReply(
   messageContent: string,
   authorId: string,
   rules: BotRules,
+  random: () => number = Math.random,
 ): string | undefined {
   const userRule = rules.userIdRules.find((rule) => rule.userId === authorId);
-  if (userRule) return userRule.reply;
+  if (userRule) {
+    return random() < userRule.chancePercent / 100 ? userRule.reply : undefined;
+  }
 
   const normalizedContent = messageContent.toLowerCase();
   const keywordRule = rules.keywordRules.find((rule) =>

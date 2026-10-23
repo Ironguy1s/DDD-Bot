@@ -17,14 +17,15 @@ Edit `scripts/config/discord-bot.rules.json`. Matching is case-insensitive and c
   "userIdRules": [
     {
       "userId": "123456789012345678",
-      "reply": "I noticed your message."
+      "reply": "I noticed your message.",
+      "chancePercent": 10
     }
   ],
   "cooldownSeconds": 3
 }
 ```
 
-Use empty arrays until you are ready to add rules. `cooldownSeconds` limits replies to one per user during that interval; set it to `0` to disable the cooldown. Restart the **Discord Bot** workflow after changing rules.
+For a user-ID rule, `chancePercent` is optional and defaults to `100`; set it from `0` to `100` to control how often it replies. `cooldownSeconds` limits replies to one per user during that interval; set it to `0` to disable the cooldown. Restart the **Discord Bot** workflow after changing rules.
 
 ## Owner-only `/say`
 

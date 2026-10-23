@@ -4,7 +4,8 @@
   "userIdRules": [
     {
       "userId": "1035071471741050880",
-      "reply": "shh kid"
+      "reply": "shh kid",
+      "chancePercent": 10
     }
   ],
   "cooldownSeconds": 3
