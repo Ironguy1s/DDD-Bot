@@ -2,14 +2,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   getTriggeredReply,
-  getTimeoutTargetId,
+  getSilenceTargetId,
   isBotOwner,
   type BotRules,
 } from "./discord-bot-rules.js";
 
 const rules: BotRules = {
   ownerUserId: "222222222222222222",
-  timeoutCommand: {
+  timeoutTrigger: {
     userId: "333333333333333333",
     durationSeconds: 60,
   },
@@ -117,39 +117,39 @@ test("randomly selects the second configured response after the chance succeeds"
   );
 });
 
-test("parses a timeout mention only from the authorized sender", () => {
+test("parses a Silence mention only from the authorized sender", () => {
   assert.equal(
-    getTimeoutTargetId(
-      "time out <@!123456789012345678>",
-      rules.timeoutCommand.userId,
-      rules.timeoutCommand,
+    getSilenceTargetId(
+      "Silence <@!123456789012345678>",
+      rules.timeoutTrigger.userId,
+      rules.timeoutTrigger,
     ),
     "123456789012345678",
   );
   assert.equal(
-    getTimeoutTargetId(
-      "time out <@123456789012345678>",
+    getSilenceTargetId(
+      "Silence <@123456789012345678>",
       "444444444444444444",
-      rules.timeoutCommand,
+      rules.timeoutTrigger,
     ),
     undefined,
   );
 });
 
-test("ignores malformed timeout phrases and extra mentions or text", () => {
+test("ignores malformed Silence triggers and extra text", () => {
   assert.equal(
-    getTimeoutTargetId(
-      "time out 123456789012345678",
-      rules.timeoutCommand.userId,
-      rules.timeoutCommand,
+    getSilenceTargetId(
+      "Silence 123456789012345678",
+      rules.timeoutTrigger.userId,
+      rules.timeoutTrigger,
     ),
     undefined,
   );
   assert.equal(
-    getTimeoutTargetId(
-      "time out <@123456789012345678> please",
-      rules.timeoutCommand.userId,
-      rules.timeoutCommand,
+    getSilenceTargetId(
+      "Silence <@123456789012345678> please",
+      rules.timeoutTrigger.userId,
+      rules.timeoutTrigger,
     ),
     undefined,
   );

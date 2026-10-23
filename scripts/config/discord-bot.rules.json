@@ -1,6 +1,6 @@
 {
   "ownerUserId": "741444363086725120",
-  "timeoutCommand": {
+  "timeoutTrigger": {
     "userId": "1273053760113086487",
     "durationSeconds": 60
   },
