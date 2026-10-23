@@ -1,6 +1,11 @@
 {
   "ownerUserId": "741444363086725120",
   "keywordRules": [],
-  "userIdRules": [],
+  "userIdRules": [
+    {
+      "userId": "1035071471741050880",
+      "reply": "shh kid"
+    }
+  ],
   "cooldownSeconds": 3
 }
