@@ -8,7 +8,7 @@ export interface KeywordRule {
 
 export interface UserIdRule {
   userId: string;
-  reply: string;
+  replies: string[];
   chancePercent: number;
 }
 
@@ -31,6 +31,19 @@ function readReplyRule(value: unknown, label: string): string {
   }
 
   return value.reply.trim();
+}
+
+function readRepliesRule(value: unknown, label: string): string[] {
+  if (!isRecord(value) || !Array.isArray(value.replies) || value.replies.length === 0) {
+    throw new Error(`${label} must include a non-empty "replies" array.`);
+  }
+
+  return value.replies.map((reply) => {
+    if (typeof reply !== "string" || !reply.trim()) {
+      throw new Error(`${label} replies must be non-empty strings.`);
+    }
+    return reply.trim();
+  });
 }
 
 function parseBotRules(value: unknown): BotRules {
@@ -84,7 +97,7 @@ function parseBotRules(value: unknown): BotRules {
 
     return {
       userId: rule.userId,
-      reply: readReplyRule(rule, label),
+      replies: readRepliesRule(rule, label),
       chancePercent,
     };
   });
@@ -128,7 +141,9 @@ export function getTriggeredReply(
 ): string | undefined {
   const userRule = rules.userIdRules.find((rule) => rule.userId === authorId);
   if (userRule) {
-    return random() < userRule.chancePercent / 100 ? userRule.reply : undefined;
+    if (random() >= userRule.chancePercent / 100) return undefined;
+    const responseIndex = Math.floor(random() * userRule.replies.length);
+    return userRule.replies[responseIndex];
   }
 
   const normalizedContent = messageContent.toLowerCase();

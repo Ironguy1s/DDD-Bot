@@ -4,7 +4,10 @@
   "userIdRules": [
     {
       "userId": "1035071471741050880",
-      "reply": "shh kid",
+      "replies": [
+        "shh kid",
+        "come to my party next time"
+      ],
       "chancePercent": 10
     }
   ],

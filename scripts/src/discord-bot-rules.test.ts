@@ -15,7 +15,7 @@ const rules: BotRules = {
   userIdRules: [
     {
       userId: "123456789012345678",
-      reply: "User-specific reply",
+      replies: ["User-specific reply"],
       chancePercent: 100,
     },
   ],
@@ -52,14 +52,20 @@ test("a user-ID reply with a 10 percent chance can trigger", () => {
     userIdRules: [
       {
         userId: "123456789012345678",
-        reply: "shh kid",
+        replies: ["shh kid", "come to my party next time"],
         chancePercent: 10,
       },
     ],
   };
 
+  const randomValues = [0.09, 0.1];
   assert.equal(
-    getTriggeredReply("any message", "123456789012345678", tenPercentRule, () => 0.09),
+    getTriggeredReply(
+      "any message",
+      "123456789012345678",
+      tenPercentRule,
+      () => randomValues.shift() ?? 0,
+    ),
     "shh kid",
   );
 });
@@ -70,7 +76,7 @@ test("a user-ID reply with a 10 percent chance usually does not trigger", () => 
     userIdRules: [
       {
         userId: "123456789012345678",
-        reply: "shh kid",
+        replies: ["shh kid", "come to my party next time"],
         chancePercent: 10,
       },
     ],
@@ -79,5 +85,29 @@ test("a user-ID reply with a 10 percent chance usually does not trigger", () => 
   assert.equal(
     getTriggeredReply("any message", "123456789012345678", tenPercentRule, () => 0.1),
     undefined,
+  );
+});
+
+test("randomly selects the second configured response after the chance succeeds", () => {
+  const tenPercentRule: BotRules = {
+    ...rules,
+    userIdRules: [
+      {
+        userId: "123456789012345678",
+        replies: ["shh kid", "come to my party next time"],
+        chancePercent: 10,
+      },
+    ],
+  };
+  const randomValues = [0.01, 0.75];
+
+  assert.equal(
+    getTriggeredReply(
+      "any message",
+      "123456789012345678",
+      tenPercentRule,
+      () => randomValues.shift() ?? 0,
+    ),
+    "come to my party next time",
   );
 });
