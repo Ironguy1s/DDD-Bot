@@ -4,6 +4,7 @@
     "userId": "1273053760113086487",
     "durationSeconds": 60
   },
+  
   "keywordRules": [],
   "userIdRules": [
     {
@@ -16,6 +17,21 @@
       ],
       "chancePercent": 10
     }
+
+    
+  ],
+
+  "userIdRules": [
+    {
+      "userId": "1247058449066627112",
+      "replies": [
+        "SYBAU You suck at huss valley",
+        "Wrap it up lil bro"
+      ],
+      "chancePercent": 99
+    }
+
+
   ],
   "cooldownSeconds": 3
 }
