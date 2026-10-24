@@ -86,15 +86,7 @@ async function handleRemoveRole(
   }
 
   const guild = interaction.guild;
-  if (!guild) {
-    await interaction.reply({
-      content: "Use this command in a server.",
-      flags: [MessageFlags.Ephemeral],
-    });
-    return;
-  }
-
-  const roleOption = interaction.options.getRole("role", true);
+  const role = interaction.options.getRole("role", true);
   const targetUser = interaction.options.getUser("member", true);
 
   if (
@@ -131,20 +123,6 @@ async function handleRemoveRole(
 
   if (!botMember.permissions.has(PermissionFlagsBits.ManageRoles)) {
     await interaction.editReply("I need the Manage Roles permission to remove roles.");
-    return;
-  }
-
-  let role;
-  try {
-    role = await guild.roles.fetch(roleOption.id);
-  } catch (error) {
-    console.error(`Could not fetch the requested role: ${getErrorMessage(error)}`);
-    await interaction.editReply("I couldn't find that role in this server.");
-    return;
-  }
-
-  if (!role) {
-    await interaction.editReply("I couldn't find that role in this server.");
     return;
   }
 
