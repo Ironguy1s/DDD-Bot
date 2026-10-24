@@ -4,14 +4,17 @@ import {
   Events,
   GatewayIntentBits,
   MessageFlags,
+  PermissionFlagsBits,
+  type ChatInputCommandInteraction,
   type Message,
   type RESTPostAPIChatInputApplicationCommandsJSONBody,
 } from "discord.js";
 import {
   getSilenceTargetId,
   getTriggeredReply,
-  isBotOwner,
+  isAuthorizedUser,
   loadBotRules,
+  type BotRules,
 } from "./discord-bot-rules.js";
 
 const sayCommand = {
@@ -24,6 +27,25 @@ const sayCommand = {
       type: ApplicationCommandOptionType.String,
       required: true,
       max_length: 2000,
+    },
+  ],
+} satisfies RESTPostAPIChatInputApplicationCommandsJSONBody;
+
+const removeRoleCommand = {
+  name: "remove",
+  description: "Remove a role from a server member",
+  options: [
+    {
+      name: "role",
+      description: "Role to remove",
+      type: ApplicationCommandOptionType.Role,
+      required: true,
+    },
+    {
+      name: "member",
+      description: "Member to remove the role from",
+      type: ApplicationCommandOptionType.User,
+      required: true,
     },
   ],
 } satisfies RESTPostAPIChatInputApplicationCommandsJSONBody;
@@ -41,6 +63,115 @@ async function replyWithoutPings(message: Message, content: string): Promise<voi
   } catch (error) {
     console.error(`Could not send a bot reply: ${getErrorMessage(error)}`);
   }
+}
+
+async function handleRemoveRole(
+  interaction: ChatInputCommandInteraction,
+  rules: BotRules,
+): Promise<void> {
+  if (!isAuthorizedUser(interaction.user.id, rules.ownerUserId)) {
+    await interaction.reply({
+      content: "Only the configured bot owner can use this command.",
+      flags: [MessageFlags.Ephemeral],
+    });
+    return;
+  }
+
+  if (!interaction.inGuild()) {
+    await interaction.reply({
+      content: "Use this command in a server.",
+      flags: [MessageFlags.Ephemeral],
+    });
+    return;
+  }
+
+  const guild = interaction.guild;
+  if (!guild) {
+    await interaction.reply({
+      content: "Use this command in a server.",
+      flags: [MessageFlags.Ephemeral],
+    });
+    return;
+  }
+
+  const roleOption = interaction.options.getRole("role", true);
+  const targetUser = interaction.options.getUser("member", true);
+
+  if (
+    targetUser.bot ||
+    targetUser.id === interaction.user.id ||
+    targetUser.id === guild.ownerId
+  ) {
+    await interaction.reply({
+      content: "I can't remove roles from the command user, a bot, or the server owner.",
+      flags: [MessageFlags.Ephemeral],
+    });
+    return;
+  }
+
+  await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
+
+  let target;
+  try {
+    target = await guild.members.fetch(targetUser.id);
+  } catch (error) {
+    console.error(`Could not find the requested role-removal target: ${getErrorMessage(error)}`);
+    await interaction.editReply("I couldn't find that member in this server.");
+    return;
+  }
+
+  let botMember;
+  try {
+    botMember = guild.members.me ?? await guild.members.fetchMe();
+  } catch (error) {
+    console.error(`Could not verify the bot's server permissions: ${getErrorMessage(error)}`);
+    await interaction.editReply("I couldn't verify my role permissions in this server.");
+    return;
+  }
+
+  if (!botMember.permissions.has(PermissionFlagsBits.ManageRoles)) {
+    await interaction.editReply("I need the Manage Roles permission to remove roles.");
+    return;
+  }
+
+  let role;
+  try {
+    role = await guild.roles.fetch(roleOption.id);
+  } catch (error) {
+    console.error(`Could not fetch the requested role: ${getErrorMessage(error)}`);
+    await interaction.editReply("I couldn't find that role in this server.");
+    return;
+  }
+
+  if (!role) {
+    await interaction.editReply("I couldn't find that role in this server.");
+    return;
+  }
+
+  if (role.id === guild.id || role.managed || !role.editable) {
+    await interaction.editReply("I can't manage that role. It may be managed by an integration or above my highest role.");
+    return;
+  }
+
+  if (!target.manageable) {
+    await interaction.editReply("I can't manage that member because of the server role hierarchy.");
+    return;
+  }
+
+  if (!target.roles.cache.has(role.id)) {
+    await interaction.editReply("That member doesn't have the selected role.");
+    return;
+  }
+
+  try {
+    await target.roles.remove(role, "Role removal requested by the authorized bot owner");
+  } catch (error) {
+    console.error(`Could not remove the requested role: ${getErrorMessage(error)}`);
+    await interaction.editReply("I couldn't remove that role. Check my Manage Roles permission and the server role hierarchy.");
+    return;
+  }
+
+  await interaction.editReply(`Removed the ${role.name} role from ${target.user.tag}.`);
 }
 
 async function startBot(): Promise<void> {
@@ -68,15 +199,19 @@ async function startBot(): Promise<void> {
 
     try {
       const existingCommands = await readyClient.application.commands.fetch();
-      const existingSayCommand = existingCommands.find((command) => command.name === "say");
-      if (existingSayCommand) {
-        await readyClient.application.commands.edit(existingSayCommand.id, sayCommand);
-      } else {
-        await readyClient.application.commands.create(sayCommand);
+      for (const commandDefinition of [sayCommand, removeRoleCommand]) {
+        const existingCommand = existingCommands.find(
+          (command) => command.name === commandDefinition.name,
+        );
+        if (existingCommand) {
+          await readyClient.application.commands.edit(existingCommand.id, commandDefinition);
+        } else {
+          await readyClient.application.commands.create(commandDefinition);
+        }
       }
-      console.info("The /say command is registered.");
+      console.info("The /say and /remove commands are registered.");
     } catch (error) {
-      console.error(`Could not register /say: ${getErrorMessage(error)}`);
+      console.error(`Could not register a Discord command: ${getErrorMessage(error)}`);
     }
   });
 
@@ -84,14 +219,13 @@ async function startBot(): Promise<void> {
     if (!message.inGuild() || message.author.bot) return;
 
     const trimmedContent = message.content.trim();
-    const isTimeoutRequest = /^time\s+out\b/i.test(trimmedContent);
+    const isSilenceTrigger = /^silence\b/i.test(trimmedContent);
 
-    // Safely check if timeoutCommand and userId exist to prevent crashing
-    if (rules.timeoutCommand?.userId && message.author.id === rules.timeoutCommand.userId && isTimeoutRequest) {
+    if (message.author.id === rules.timeoutTrigger.userId && isSilenceTrigger) {
       const targetId = getSilenceTargetId(
         trimmedContent,
         message.author.id,
-        rules.timeoutCommand,
+        rules.timeoutTrigger,
       );
 
       if (
@@ -101,7 +235,7 @@ async function startBot(): Promise<void> {
       ) {
         await replyWithoutPings(
           message,
-          "Use `time out @member` with exactly one real member mention.",
+          "Use `Silence @member` with exactly one real member mention.",
         );
         return;
       }
@@ -122,14 +256,14 @@ async function startBot(): Promise<void> {
       ) {
         await replyWithoutPings(
           message,
-          "I can't time out the command sender, a bot, or the server owner.",
+          "I can't time out the trigger sender, a bot, or the server owner.",
         );
         return;
       }
 
-      const durationSeconds = rules.timeoutCommand.durationSeconds ?? 60;
+      const durationSeconds = rules.timeoutTrigger.durationSeconds;
       try {
-        await target.timeout(durationSeconds * 1000, "Authorized timeout command");
+        await target.timeout(durationSeconds * 1000, "Authorized Silence trigger");
       } catch (error) {
         console.error(`Could not apply the requested timeout: ${getErrorMessage(error)}`);
         await replyWithoutPings(
@@ -166,9 +300,16 @@ async function startBot(): Promise<void> {
   });
 
   client.on(Events.InteractionCreate, async (interaction) => {
-    if (!interaction.isChatInputCommand() || interaction.commandName !== "say") return;
+    if (!interaction.isChatInputCommand()) return;
 
-    if (!isBotOwner(interaction.user.id, rules.ownerUserId)) {
+    if (interaction.commandName === "remove") {
+      await handleRemoveRole(interaction, rules);
+      return;
+    }
+
+    if (interaction.commandName !== "say") return;
+
+    if (!isAuthorizedUser(interaction.user.id, rules.ownerUserId)) {
       await interaction.reply({
         content: "Only the bot owner can use this command.",
         flags: [MessageFlags.Ephemeral],

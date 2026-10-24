@@ -192,8 +192,8 @@ export function getTriggeredReply(
   return keywordRule?.reply;
 }
 
-export function isBotOwner(userId: string, ownerUserId: string): boolean {
-  return userId === ownerUserId;
+export function isAuthorizedUser(userId: string, authorizedUserId: string): boolean {
+  return userId === authorizedUserId;
 }
 
 export function getSilenceTargetId(

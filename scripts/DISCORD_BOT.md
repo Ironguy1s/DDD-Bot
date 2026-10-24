@@ -36,6 +36,10 @@ For a user-ID rule, `replies` is an array and the bot randomly chooses one after
 
 `Silence @member` is a normal message trigger, not a slash command. It only runs when the configured user sends that phrase with exactly one real Discord user mention. The bot applies the configured duration (60 seconds here), and requires **Moderate Members** permission with its role above the target's. It won't time out the trigger sender, a bot, or the server owner.
 
+## Owner-only `/remove`
+
+Use `/remove role:<role> member:<member>` to remove one selected role from one selected member. Only the user set in `ownerUserId`—the same user authorized for `/say`—can use it; other users receive a private denial. The bot needs **Manage Roles** permission, and the role and member must be below the bot in the server's role hierarchy. It won't remove `@everyone`, integration-managed roles, or roles the bot cannot manage, and it won't target the command user, a bot, or the server owner.
+
 ## Owner-only `/say`
 
 The bot registers `/say message:<text>` when it starts. It posts the supplied text in the current server channel and gives you a private confirmation. Other users can see the command, but the bot will not send their messages and will show them a private denial. The command uses `ownerUserId` from the rules file for this check. Mentions are disabled in sent messages.
@@ -44,7 +48,7 @@ The bot registers `/say message:<text>` when it starts. It posts the supplied te
 
 1. In the Discord Developer Portal, create an application and add a bot.
 2. Under **Bot**, enable **Message Content Intent**. The bot uses this to read message text.
-3. Invite it to your server using the OAuth2 URL Generator with the `bot` and `applications.commands` scopes and the `View Channels` and `Send Messages` permissions.
+3. Invite it to your server using the OAuth2 URL Generator with the `bot` and `applications.commands` scopes and the `View Channels`, `Send Messages`, **Moderate Members**, and **Manage Roles** permissions.
 4. Keep the bot token in Replit Secrets as `DISCORD_BOT_TOKEN`. Never put it in the rules file or source code.
 5. Start the **Discord Bot** workflow.
 
