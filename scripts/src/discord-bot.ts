@@ -3,6 +3,7 @@ import {
   Client,
   Events,
   GatewayIntentBits,
+  MessageFlags,
   type Message,
   type RESTPostAPIChatInputApplicationCommandsJSONBody,
 } from "discord.js";
@@ -57,12 +58,12 @@ async function startBot(): Promise<void> {
     ],
   });
   const lastReplyAtByUser = new Map<string, number>();
-  const cooldownMs = rules.cooldownSeconds * 1000;
+  const cooldownMs = (rules.cooldownSeconds ?? 0) * 1000;
 
   client.once(Events.ClientReady, async (readyClient) => {
     console.info(`Discord bot is online as ${readyClient.user.tag}.`);
     console.info(
-      `Loaded ${rules.keywordRules.length} keyword rule(s) and ${rules.userIdRules.length} user ID rule(s).`,
+      `Loaded ${rules.keywordRules?.length ?? 0} keyword rule(s) and ${rules.userIdRules?.length ?? 0} user ID rule(s).`,
     );
 
     try {
@@ -84,11 +85,13 @@ async function startBot(): Promise<void> {
 
     const trimmedContent = message.content.trim();
     const isTimeoutRequest = /^time\s+out\b/i.test(trimmedContent);
-    if (message.author.id === rules.timeoutTrigger.userId && isTimeoutRequest) {
+
+    // Safely check if timeoutCommand and userId exist to prevent crashing
+    if (rules.timeoutCommand?.userId && message.author.id === rules.timeoutCommand.userId && isTimeoutRequest) {
       const targetId = getSilenceTargetId(
         trimmedContent,
         message.author.id,
-        rules.timeoutTrigger,
+        rules.timeoutCommand,
       );
 
       if (
@@ -124,7 +127,7 @@ async function startBot(): Promise<void> {
         return;
       }
 
-      const durationSeconds = rules.timeoutTrigger.durationSeconds;
+      const durationSeconds = rules.timeoutCommand.durationSeconds ?? 60;
       try {
         await target.timeout(durationSeconds * 1000, "Authorized timeout command");
       } catch (error) {
@@ -168,7 +171,7 @@ async function startBot(): Promise<void> {
     if (!isBotOwner(interaction.user.id, rules.ownerUserId)) {
       await interaction.reply({
         content: "Only the bot owner can use this command.",
-        ephemeral: true,
+        flags: [MessageFlags.Ephemeral],
       });
       return;
     }
@@ -181,7 +184,7 @@ async function startBot(): Promise<void> {
     ) {
       await interaction.reply({
         content: "Use this command in a server text channel.",
-        ephemeral: true,
+        flags: [MessageFlags.Ephemeral],
       });
       return;
     }
@@ -190,12 +193,12 @@ async function startBot(): Promise<void> {
     if (!content) {
       await interaction.reply({
         content: "Please provide a message to send.",
-        ephemeral: true,
+        flags: [MessageFlags.Ephemeral],
       });
       return;
     }
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
     try {
       await interaction.channel.send({
         content,
